@@ -1,0 +1,44 @@
+#!/usr/bin/python
+
+
+import time
+import datetime
+import sys
+from sht1x.Sht1x import Sht1x as SHT1x
+import paho.mqtt.publish as publish
+
+try:
+    import RPi.GPIO as GPIO
+except RuntimeError:
+    print("Error importing RPi.GPIO!")
+
+dataPin = 11
+clkPin = 7
+sht1x = SHT1x(dataPin, clkPin, SHT1x.GPIO_BOARD)
+
+
+def detect():
+    t = time.time()
+    current_time = time.strftime('%H:%M:%S', time.localtime(t))
+    temperature = sht1x.read_temperature_C()
+    humidity = sht1x.read_humidity()
+    return current_time, round(temperature, 2), round(humidity, 2)
+
+
+n = 1
+while n <= 60:
+    try:
+        (current_time, temperature, humidity) = detect()
+        print("measure: " + str(n) + ". Time:%s  Temperature:%2.1f`C  Humidity:%2.2f%% " % (
+        current_time, temperature, humidity))
+
+        publish.single("iot-2/evt/event_id/fmt/format_string", payload="measure: " + str(n) + "." + str(
+            " Time: %s  Temperature: %2.1f`C  Humidity: %2.2f%% " % (current_time, temperature, humidity)),
+                       hostname="fp4erb.messaging.internetofthings.ibmcloud.com", port=1883,
+                       client_id="d:fp4erb:MQTTDevice:b827eb225abc", keepalive=60,
+                       auth={'username': "use-token-auth", 'password': "SnQAE-gGHlSjyc!G0x"})
+        n = n + 1
+        time.sleep(20)
+    except KeyboardInterrupt, e:
+        print e
+        sys.exit()
